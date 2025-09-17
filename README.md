@@ -46,20 +46,21 @@ Follow these steps to run FloodSense locally.
 git clone https://github.com/<your-username>/floodsense.git
 cd floodsense
 ```
-2. Create a Virtual Environment (Recommended)
-bash
+### 2. Create a Virtual Environment (Recommended)
+```bash
 python -m venv venv
 # On Windows
 venv\Scripts\activate
 # On macOS/Linux
 source venv/bin/activate
-3. Install Dependencies
-bash
+```
+### 3. Install Dependencies
+```bash
 pip install -r requirements.txt
-4. Configure Environment Variables
+```
+### 4. Configure Environment Variables
 Create a .env file in the root directory and add your credentials:
-
-bash
+```bash
 # Twilio Credentials (Optional)
 TWILIO_SID=your_account_sid
 TWILIO_AUTH=your_auth_token
@@ -79,7 +80,8 @@ TELEGRAM_CHAT=your_chat_id
 # Test Recipients
 TEST_SMS_TO=+91XXXXXXXXXX
 TEST_EMAIL_TO=test@example.com
-5. Run the Application
+```
+### 5. Run the Application
 ```bash
 python app.py
 The backend API server will start at http://localhost:5000.
