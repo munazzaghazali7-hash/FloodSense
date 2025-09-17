@@ -5,7 +5,7 @@
 
 **FloodSense** is an automated early warning system that predicts flash floods using real-time river data and disseminates life-saving alerts via SMS, Email, and Telegram, empowering communities to act before disaster strikes.
 
-> **Built for:** Smart India Hackathon 2024 | **Theme:** Disaster Management & Clean Tech
+> **Built for:** Smart India Hackathon 2025 | **Theme:** Disaster Management & Clean Tech
 
 ---
 
