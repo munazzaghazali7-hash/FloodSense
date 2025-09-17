@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FloodSense - Early Warning System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      margin: 0; 
+      padding: 0; 
+      background: #f5f7fa;
+    }
+    header { 
+      background: linear-gradient(135deg, #0077b6 0%, #03045e 100%);
+      color: white; 
+      padding: 1.5rem; 
+      text-align: center; 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    main { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 1.5rem; 
+      padding: 1.5rem; 
+      max-width: 1400px; 
+      margin: 0 auto;
+    }
+    section { 
+      background: white; 
+      padding: 1.5rem; 
+      border-radius: 12px; 
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    #map { 
+      height: 400px; 
+      border-radius: 8px;
+    }
+    .risk-high { color: #e74c3c; font-weight: bold; }
+    .risk-medium { color: #f39c12; font-weight: bold; }
+    .risk-low { color: #27ae60; font-weight: bold; }
+    .risk-normal { color: #2ecc71; font-weight: bold; }
+    
+    .gauge-item {
+      padding: 12px;
+      margin: 8px 0;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #0077b6;
+    }
+    
+    .alert-section {
+      grid-column: 1 / span 2;
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+      color: white;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    
+    input, button {
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    button {
+      background: #0077b6;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    button:hover {
+      background: #025e8d;
+    }
+    
+    .alert-btn {
+      background: #e74c3c;
+    }
+    
+    .alert-btn:hover {
+      background: #c0392b;
+    }
+    
+    .status-card {
+      text-align: center;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 10px;
+      background: #ecf0f1;
+    }
+    
+    .status-card.alert {
+      background: #ffebee;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { background-color: #ffebee; }
+      50% { background-color: #ffcdd2; }
+      100% { background-color: #ffebee; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌊 FloodSense - Early Warning System</h1>
+    <p>Real-time flood risk monitoring and alerts</p>
+  </header>
+  
+  <main>
+    <section>
+      <h2>📊 Current Station Data</h2>
+      <div id="statusCard" class="status-card">
+        <h3>Status: <span id="riskLevel">Loading...</span></h3>
+        <p>Last updated: <span id="updateTime">--:--:--</span></p>
+      </div>
+      <div class="gauge-item">
+        <strong>📍 Station:</strong> <span id="stationName">Loading...</span>
+      </div>
+      <div class="gauge-item">
+        <strong>💧 Water Level:</strong> <span id="waterLevel">--</span> m 
+        <small>(Danger: >4.5m)</small>
+      </div>
+      <div class="gauge-item">
+        <strong>🌧️ Rainfall (24h):</strong> <span id="rainfall">--</span> mm 
+        <small>(Danger: >100mm)</small>
+      </div>
+    </section>
+    
+    <section>
+      <h2>📈 Risk Assessment</h2>
+      <div class="controls">
+        <button onclick="fetchStationData()">🔄 Refresh Data</button>
+        <button onclick="simulateEmergency()" class="alert-btn">🚨 Simulate Emergency</button>
+        <button onclick="resetData()">🔄 Reset to Normal</button>
+      </div>
+      <canvas id="levelChart" height="200"></canvas>
+    </section>
+    
+    <section>
+      <h2>📱 Send Alert</h2>
+      <div class="controls">
+        <input type="text" id="phoneInput" placeholder="+91XXXXXXXXXX" value="+91XXXXXXXXXX">
+        <button onclick="sendAlert()">📤 Send Test Alert</button>
+      </div>
+      <div id="alertStatus" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;"></div>
+    </section>
+    
+    <section>
+      <h2>🗺️ Station Location</h2>
+      <div id="map"></div>
+      <div style="margin-top: 15px;">
+        <strong>Station ID:</strong> <span id="stationId">GRB-062</span><br>
+        <strong>Location:</strong> <span id="stationLocation">Nashik, Maharashtra</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Initialize map centered on India
+    let map = L.map("map").setView([20.5937, 78.9629], 5);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors"
+    }).addTo(map);
+    
+    let chart;
+    let historyData = [];
+    const stationCoords = [19.9975, 73.7898]; // Nashik coordinates
+
+    // Add marker for our station
+    const stationMarker = L.marker(stationCoords).addTo(map);
+    stationMarker.bindPopup("<b>Godavari at Nashik</b><br>Monitoring Station GRB-062");
+
+    async function fetchStationData() {
+      try {
+        const response = await fetch("http://localhost:5000/api/station-data");
+        const data = await response.json();
+        
+        updateDashboard(data);
+        updateChart(data);
+      } catch (err) {
+        console.error("Error fetching station data:", err);
+        showAlert("❌ Error connecting to API server. Make sure Flask is running on port 5000.", "error");
+      }
+    }
+
+    async function sendAlert() {
+      const phone = document.getElementById("phoneInput").value;
+      if (!phone) {
+        showAlert("Please enter a phone number", "error");
+        return;
+      }
+      
+      try {
+        const response = await fetch("http://localhost:5000/api/send-alert", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            phone: phone,
+            message: "Test alert from FloodSense dashboard"
+          })
+        });
+        
+        const result = await response.json();
+        showAlert(`✅ ${result.message}`, "success");
+      } catch (err) {
+        console.error("Error sending alert:", err);
+        showAlert("❌ Failed to send alert", "error");
+      }
+    }
+
+    async function simulateEmergency() {
+      try {
+        const response = await fetch("http://localhost:5000/api/simulate-emergency", {
+          method: "POST"
+        });
+        
+        const result = await response.json();
+        showAlert("🚨 Emergency scenario activated!", "warning");
+        fetchStationData(); // Refresh data to show emergency state
+      } catch (err) {
+        console.error("Error simulating emergency:", err);
+        showAlert("❌ Failed to simulate emergency", "error");
+      }
+    }
+
+    async function resetData() {
+      try {
+        const response = await fetch("http://localhost:5000/api/reset-data", {
+          method: "POST"
+        });
+        
+        const result = await response.json();
+        showAlert("✅ Data reset to normal conditions", "success");
+        fetchStationData(); // Refresh data
+      } catch (err) {
+        console.error("Error resetting data:", err);
+        showAlert("❌ Failed to reset data", "error");
+      }
+    }
+
+    function updateDashboard(data) {
+      // Update risk level
+      const riskLevelElement = document.getElementById("riskLevel");
+      riskLevelElement.textContent = data.risk_level;
+      riskLevelElement.className = `risk-${data.risk_level.toLowerCase()}`;
+      
+      // Update status card styling
+      const statusCard = document.getElementById("statusCard");
+      if (data.risk_level === "HIGH") {
+        statusCard.classList.add("alert");
+      } else {
+        statusCard.classList.remove("alert");
+      }
+      
+      // Update other fields
+      document.getElementById("updateTime").textContent = new Date(data.timestamp).toLocaleTimeString();
+      document.getElementById("stationName").textContent = data.station_name;
+      document.getElementById("waterLevel").textContent = data.water_level;
+      document.getElementById("rainfall").textContent = data.rainfall;
+      document.getElementById("stationId").textContent = data.station_id;
+      document.getElementById("stationLocation").textContent = data.location;
+      
+      // Update marker popup with current data
+      stationMarker.setPopupContent(
+        `<b>${data.station_name}</b><br>` +
+        `Level: ${data.water_level}m (${data.risk_level} risk)<br>` +
+        `Rainfall: ${data.rainfall}mm/24h`
+      );
+    }
+
+    function updateChart(data) {
+      // Add current reading to history
+      historyData.push({
+        timestamp: new Date(data.timestamp).toLocaleTimeString(),
+        level: data.water_level,
+        rainfall: data.rainfall
+      });
+      
+      // Keep only last 10 readings
+      if (historyData.length > 10) {
+        historyData = historyData.slice(-10);
+      }
+      
+      const ctx = document.getElementById("levelChart").getContext("2d");
+      const labels = historyData.map(h => h.timestamp);
+      const levels = historyData.map(h => h.level);
+      const rainfall = historyData.map(h => h.rainfall);
+      
+      if (chart) {
+        chart.destroy();
+      }
+      
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Water Level (m)",
+              data: levels,
+              borderColor: "rgb(54, 162, 235)",
+              backgroundColor: "rgba(54, 162, 235, 0.1)",
+              yAxisID: "y",
+              tension: 0.3
+            },
+            {
+              label: "Rainfall (mm)",
+              data: rainfall,
+              borderColor: "rgb(75, 192, 192)",
+              backgroundColor: "rgba(75, 192, 192, 0.1)",
+              yAxisID: "y1",
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: {
+            mode: "index",
+            intersect: false,
+          },
+          scales: {
+            y: {
+              type: "linear",
+              display: true,
+              position: "left",
+              title: {
+                display: true,
+                text: "Water Level (m)"
+              }
+            },
+            y1: {
+              type: "linear",
+              display: true,
+              position: "right",
+              title: {
+                display: true,
+                text: "Rainfall (mm)"
+              },
+              grid: {
+                drawOnChartArea: false,
+              },
+            }
+          }
+        }
+      });
+    }
+
+    function showAlert(message, type) {
+      const alertElement = document.getElementById("alertStatus");
+      alertElement.textContent = message;
+      alertElement.style.display = "block";
+      alertElement.style.background = type === "error" ? "#ffebee" : 
+                                    type === "warning" ? "#fff3e0" : "#e8f5e8";
+      alertElement.style.color = type === "error" ? "#c62828" : 
+                               type === "warning" ? "#f57c00" : "#2e7d32";
+      
+      setTimeout(() => {
+        alertElement.style.display = "none";
+      }, 5000);
+    }
+
+    // Initialize dashboard
+    fetchStationData();
+    setInterval(fetchStationData, 10000); // Update every 10 seconds
+  </script>
+</body>
+</html>
