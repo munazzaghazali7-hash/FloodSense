@@ -45,6 +45,62 @@ Follow these steps to run FloodSense locally.
 ```bash
 git clone https://github.com/<your-username>/floodsense.git
 cd floodsense
+```
+2. Create a Virtual Environment (Recommended)
+bash
+python -m venv venv
+# On Windows
+venv\Scripts\activate
+# On macOS/Linux
+source venv/bin/activate
+3. Install Dependencies
+bash
+pip install -r requirements.txt
+4. Configure Environment Variables
+Create a .env file in the root directory and add your credentials:
+
+bash
+# Twilio Credentials (Optional)
+TWILIO_SID=your_account_sid
+TWILIO_AUTH=your_auth_token
+TWILIO_PHONE=your_twilio_phone_number
+
+# TextLocal Credentials (Optional - for India)
+TEXTLOCAL_API_KEY=your_textlocal_api_key
+
+# Email Credentials (Gmail - use App Password)
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_app_specific_password
+
+# Telegram Bot Credentials (Optional)
+TELEGRAM_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT=your_chat_id
+
+# Test Recipients
+TEST_SMS_TO=+91XXXXXXXXXX
+TEST_EMAIL_TO=test@example.com
+5. Run the Application
+```bash
+python app.py
+The backend API server will start at http://localhost:5000.
+Open your browser and navigate to http://localhost:5000 to view the dashboard.
+```
+
+**🎮 Usage**
+View Dashboard: The home page shows the current river data, risk level, and a history chart.
+
+Send Test Alert: Use the dashboard form to send a test alert via all configured channels.
+
+Simulate Emergency: Click "Simulate Emergency" to trigger a high-risk scenario and see the alert system in action.
+
+API Endpoints: The system exposes a clean REST API for integration:
+
+GET /api/station-data - Fetch current river data and risk assessment.
+
+POST /api/send-alert - Trigger an alert manually (accepts message, sms_to, email_to in JSON body).
+
+GET /api/health - Check API status.
 
 
-**2. Create a Virtual Environment (Recommended)**
+
+
