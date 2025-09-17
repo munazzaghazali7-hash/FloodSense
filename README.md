@@ -2,7 +2,6 @@
 
 [![Flask](https://img.shields.io/badge/Flask-2.3.3-green.svg)](https://flask.palletsprojects.com/)
 [![Twilio](https://img.shields.io/badge/Twilio-SMS-blue.svg)](https://www.twilio.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **FloodSense** is an automated early warning system that predicts flash floods using real-time river data and disseminates life-saving alerts via SMS, Email, and Telegram, empowering communities to act before disaster strikes.
 
