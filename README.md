@@ -47,3 +47,4 @@ git clone https://github.com/<your-username>/floodsense.git
 cd floodsense
 
 
+**2. Create a Virtual Environment (Recommended)**
